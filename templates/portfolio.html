@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Portafoglio - Finanze{% endblock %}
+{% block content %}
+<div class="section-title"><i class="bi bi-briefcase-fill me-2"></i>Monitoraggio Portafoglio</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card green p-3">
+            <div class="text-muted small">Capitale Investito (Fineco)</div>
+            <div class="fw-bold fs-5 text-success">€{{ "{:,.0f}".format(fineco_invested) }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="text-muted small">Conto Deposito</div>
+            <div class="fw-bold fs-5 text-primary">€{{ "{:,.0f}".format(conto_dep_invested) }}</div>
+        </div>
+    </div>
+    {% if port_data %}
+    <div class="col-md-3">
+        <div class="card stat-card {% if port_data.gross_return_pct >= 0 %}green{% else %}red{% endif %} p-3">
+            <div class="text-muted small">Valore Portafoglio Attuale</div>
+            <div class="fw-bold fs-5 {% if port_data.gross_return_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                €{{ "{:,.0f}".format(port_data.total_value) }}
+            </div>
+            <div class="text-muted small">
+                {% if port_data.gross_return_pct >= 0 %}+{% endif %}{{ port_data.gross_return_pct }}% rendimento lordo
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="text-muted small">Rendimento Assoluto</div>
+            <div class="fw-bold fs-5 {% if port_data.total_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {% if port_data.total_return >= 0 %}+{% endif %}€{{ "{:,.0f}".format(port_data.total_return) }}
+            </div>
+            <div class="text-muted small">su {{ port_data.num_securities }} prodotti</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-md-6">
+        <div class="card p-3 border-warning">
+            <div class="text-warning fw-semibold"><i class="bi bi-exclamation-triangle me-1"></i>Dati di mercato non disponibili</div>
+            <div class="text-muted small mt-1">I prezzi live non sono stati recuperati. Controllare la connessione o i file ETF.</div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if chart_invest_trend %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-graph-up text-success me-2"></i>Capitale Investito nel Tempo
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_invest_trend }}" alt="Andamento Investimenti">
+    </div>
+</div>
+{% endif %}
+
+{% if port_data and port_data.portfolio %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-table text-primary me-2"></i>Dettaglio Portafoglio ETF
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Ticker</th>
+                    <th class="text-end">TER %</th>
+                    <th class="text-end">Quantità</th>
+                    <th class="text-end">Prezzo Medio</th>
+                    <th class="text-end">Prezzo Live</th>
+                    <th class="text-end">Valore Attuale</th>
+                    <th class="text-end">Rendimento</th>
+                    <th class="text-end">Rend. %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in port_data.portfolio %}
+                <tr>
+                    <td class="fw-semibold"><code>{{ row.Ticker }}</code></td>
+                    <td class="text-end text-muted small">{{ "%.2f"|format(row.TER) }}%</td>
+                    <td class="text-end">{{ "%.2f"|format(row.Quantity) }}</td>
+                    <td class="text-end text-muted">€{{ "%.2f"|format(row.AvgPrice) }}</td>
+                    <td class="text-end fw-semibold">€{{ "%.2f"|format(row.CurrentPrice) }}</td>
+                    <td class="text-end fw-bold">€{{ "{:,.2f}".format(row.CurrentValue) }}</td>
+                    <td class="text-end {% if row.Return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if row.Return >= 0 %}+{% endif %}€{{ "{:,.2f}".format(row.Return) }}
+                    </td>
+                    <td class="text-end {% if row.ReturnPct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if row.ReturnPct >= 0 %}+{% endif %}{{ "%.1f"|format(row.ReturnPct) }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fw-bold">
+                <tr>
+                    <td colspan="5">Totale</td>
+                    <td class="text-end">€{{ "{:,.2f}".format(port_data.total_value) }}</td>
+                    <td class="text-end {% if port_data.total_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if port_data.total_return >= 0 %}+{% endif %}€{{ "{:,.2f}".format(port_data.total_return) }}
+                    </td>
+                    <td class="text-end {% if port_data.gross_return_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if port_data.gross_return_pct >= 0 %}+{% endif %}{{ port_data.gross_return_pct }}%
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    {% if chart_allocation %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold py-3">
+                <i class="bi bi-pie-chart-fill text-warning me-2"></i>Allocazione ETF
+            </div>
+            <div class="card-body chart-container text-center">
+                <img src="data:image/png;base64,{{ chart_allocation }}" alt="Allocazione">
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if chart_currency %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold py-3">
+                <i class="bi bi-currency-exchange text-danger me-2"></i>Rischio Valuta
+            </div>
+            <div class="card-body chart-container text-center">
+                <img src="data:image/png;base64,{{ chart_currency }}" alt="Rischio Valuta">
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if chart_country %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-globe2 text-primary me-2"></i>Esposizione Geografica (Top 15)
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_country }}" alt="Esposizione Geografica">
+    </div>
+</div>
+{% endif %}
+
+{% if port_data.country_breakdown %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-flag-fill text-primary me-2"></i>Dettaglio Rischio Paese
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:400px;overflow-y:auto">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light sticky-top">
+                <tr><th>Paese</th><th class="text-end">Esposizione €</th><th class="text-end">%</th></tr>
+            </thead>
+            <tbody>
+                {% for row in port_data.country_breakdown %}
+                <tr>
+                    <td>{{ row.countries }}</td>
+                    <td class="text-end text-muted small">€{{ "{:,.0f}".format(row.Exposure) }}</td>
+                    <td class="text-end fw-semibold">{{ "%.1f"|format(row.Percentage) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if port_data.currency_breakdown %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-currency-euro text-success me-2"></i>Dettaglio Rischio Valuta
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr><th>Valuta</th><th class="text-end">Esposizione €</th><th class="text-end">%</th></tr>
+            </thead>
+            <tbody>
+                {% for row in port_data.currency_breakdown %}
+                {% if row.Percentage > 0.1 %}
+                <tr>
+                    <td>{{ row.currency }}</td>
+                    <td class="text-end text-muted small">€{{ "{:,.0f}".format(row.Exposure) }}</td>
+                    <td class="text-end fw-semibold">{{ "%.1f"|format(row.Percentage) }}%</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+
+<div class="card">
+    <div class="card-body text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        I dati di mercato (prezzi live) vengono recuperati da Yahoo Finance al momento del caricamento della pagina.
+        La colonna "Prezzo Medio" è calcolata dai file di movimenti Fineco (<code>file_titoli_*.xlsx</code>).
+        Il rendimento lordo <strong>non</strong> include i costi di transazione o le imposte.
+        Tassa sul capital gain applicata: 26% sulle plusvalenze non realizzate.
+    </div>
+</div>
+{% endblock %}

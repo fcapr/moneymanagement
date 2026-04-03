@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Aggiungi Transazione - Finanze{% endblock %}
+{% block content %}
+<div class="section-title"><i class="bi bi-plus-circle-fill me-2"></i>Aggiungi Transazione</div>
+
+<div class="row">
+<div class="col-md-8 col-lg-6">
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Profilo <span class="text-danger">*</span></label>
+                    <div class="d-flex gap-3">
+                        {% for p in profiles %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="profile" id="profile_{{ p }}" value="{{ p }}" required {% if loop.first %}checked{% endif %}>
+                            <label class="form-check-label" for="profile_{{ p }}">
+                                <span class="badge {% if p == 'Anna' %}badge-anna{% else %}badge-fede{% endif %}">{{ p }}</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="type" id="type_expense" value="Expense" checked required>
+                            <label class="form-check-label" for="type_expense"><span class="badge bg-danger">Spesa</span></label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="type" id="type_income" value="Income" required>
+                            <label class="form-check-label" for="type_income"><span class="badge bg-primary">Entrata</span></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="date" class="form-label fw-semibold">Data <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="category" class="form-label fw-semibold">Categoria <span class="text-danger">*</span></label>
+                    <select class="form-select" id="category" name="category" required>
+                        <option value="">Seleziona...</option>
+                        <optgroup label="Spese" id="expense_cats">
+                            {% for c in categories.Expense %}
+                            <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        <optgroup label="Entrate" id="income_cats" style="display:none">
+                            {% for c in categories.Income %}
+                            <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="subcategory" class="form-label fw-semibold">Sottocategoria</label>
+                    <select class="form-select" id="subcategory" name="subcategory">
+                        <option value="">Seleziona categoria prima...</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="amount" class="form-label fw-semibold">Importo <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="currency" class="form-label fw-semibold">Valuta</label>
+                    <select class="form-select" id="currency" name="currency">
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="CHF">CHF</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="amount_eur" class="form-label fw-semibold">Importo in EUR</label>
+                    <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input type="number" class="form-control" id="amount_eur" name="amount_eur" step="0.01" min="0" placeholder="Uguale importo se EUR">
+                    </div>
+                    <div class="form-text">Lascia vuoto se la valuta è EUR</div>
+                </div>
+                <div class="col-12">
+                    <label for="notes" class="form-label fw-semibold">Note</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Note opzionali..."></textarea>
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-success px-4">
+                    <i class="bi bi-check-circle me-1"></i>Salva
+                </button>
+                <a href="{{ url_for('transactions') }}" class="btn btn-outline-secondary px-4">
+                    <i class="bi bi-x-circle me-1"></i>Annulla
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+const subcategories = {{ subcategories | tojson }};
+
+document.querySelectorAll('input[name="type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const isExpense = this.value === 'Expense';
+        document.getElementById('expense_cats').style.display = isExpense ? '' : 'none';
+        document.getElementById('income_cats').style.display = isExpense ? 'none' : '';
+        document.getElementById('category').value = '';
+        updateSubcategories('');
+    });
+});
+
+document.getElementById('category').addEventListener('change', function() {
+    updateSubcategories(this.value);
+    const amountEur = document.getElementById('amount_eur');
+    const currency = document.getElementById('currency');
+    if (currency.value === 'EUR') {
+        amountEur.value = document.getElementById('amount').value;
+    }
+});
+
+document.getElementById('amount').addEventListener('input', function() {
+    const currency = document.getElementById('currency');
+    if (currency.value === 'EUR') {
+        document.getElementById('amount_eur').value = this.value;
+    }
+});
+
+document.getElementById('currency').addEventListener('change', function() {
+    if (this.value === 'EUR') {
+        document.getElementById('amount_eur').value = document.getElementById('amount').value;
+    } else {
+        document.getElementById('amount_eur').value = '';
+    }
+});
+
+function updateSubcategories(category) {
+    const sel = document.getElementById('subcategory');
+    sel.innerHTML = '<option value="">Nessuna sottocategoria</option>';
+    const subs = subcategories[category] || [''];
+    subs.forEach(s => {
+        if (s !== '') {
+            const opt = document.createElement('option');
+            opt.value = s; opt.textContent = s;
+            sel.appendChild(opt);
+        }
+    });
+}
+</script>
+{% endblock %}

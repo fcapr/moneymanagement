@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Proiezioni - Finanze{% endblock %}
+{% block content %}
+<div class="section-title"><i class="bi bi-graph-up-arrow me-2"></i>Proiezioni Future</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-gear-fill text-secondary me-2"></i>Parametri della Simulazione
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Patrimonio attuale netto</span>
+                    <span class="fw-semibold text-success">€{{ "{:,.0f}".format(current_net_assets) }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Liquidità corrente</span>
+                    <span class="fw-semibold text-primary">€{{ "{:,.0f}".format(current_liquidity) }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Valore portafoglio ETF</span>
+                    <span class="fw-semibold">€{{ "{:,.0f}".format(investment_value) }}
+                    {% if gross_return %}<span class="text-{% if gross_return >= 0 %}success{% else %}danger{% endif %} small">({{ "+%.1f"|format(gross_return) if gross_return >= 0 else "%.1f"|format(gross_return) }}%)</span>{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Capitale investito (Fineco)</span>
+                    <span class="fw-semibold">€{{ "{:,.0f}".format(fineco_invested) }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Conto deposito investito</span>
+                    <span class="fw-semibold">€{{ "{:,.0f}".format(conto_dep_invested) }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Anni di previsione</span>
+                    <span class="fw-semibold">{{ params.anni_per_la_previsione }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Rendimento lordo stimato</span>
+                    <span class="fw-semibold text-primary">{{ params.interesse_lordo_Portafoglio_azionario }}%</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Investimento annuale PAC</span>
+                    <span class="fw-semibold">€{{ "{:,.0f}".format(params.investimento_annuale_ribilanciamento_stimato) }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Cambio casa stimato</span>
+                    <span class="fw-semibold">{{ params.data_cambio_casa }}</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span class="text-muted small">Cambio lavoro Anna</span>
+                    <span class="fw-semibold">{{ params.data_cambio_lavoro_Anna }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="mt-2 text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            I parametri si trovano in <code>Finanze/config.json</code>. Le proiezioni usano la media degli ultimi 12 mesi e applicano l'inflazione personale calcolata.
+        </div>
+    </div>
+</div>
+
+{% if chart_proj %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-graph-up text-success me-2"></i>Evoluzione Patrimonio Netto
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_proj }}" alt="Proiezione Patrimonio">
+    </div>
+</div>
+{% endif %}
+
+{% if chart_proj_detail %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-bar-chart text-primary me-2"></i>Dettaglio Entrate, Uscite e Risparmio Proiettati
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_proj_detail }}" alt="Dettaglio Proiezioni">
+    </div>
+</div>
+{% endif %}
+
+{% if proj_summary %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-table text-primary me-2"></i>Riepilogo Annuale Proiettato
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Anno</th>
+                    <th class="text-end text-primary">Entrate Totali</th>
+                    <th class="text-end text-danger">Uscite Totali</th>
+                    <th class="text-end text-success">Risparmio</th>
+                    <th class="text-end">Patrimonio Netto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in proj_summary %}
+                <tr>
+                    <td class="fw-semibold">{{ row.Year }}</td>
+                    <td class="text-end text-primary">€{{ "{:,.0f}".format(row.Total_Income) }}</td>
+                    <td class="text-end text-danger">€{{ "{:,.0f}".format(row.Total_Expense) }}</td>
+                    <td class="text-end {% if row.Total_Savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if row.Total_Savings >= 0 %}+{% endif %}€{{ "{:,.0f}".format(row.Total_Savings) }}
+                    </td>
+                    <td class="text-end fw-bold">€{{ "{:,.0f}".format(row.End_NetAssets) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

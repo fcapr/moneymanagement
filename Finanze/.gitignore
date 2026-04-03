@@ -1,0 +1,24 @@
+# Environment variables
+.env
+token_gmail.py
+
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.env/
+.venv/
+
+# Output files
+*.jpg
+*.html
+*.log
+data/*.csv
+
+# IDE
+.vscode/
+.idea/

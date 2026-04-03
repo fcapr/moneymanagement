@@ -1,0 +1,75 @@
+{
+    "_meta": "Configurazione per il progetto finanziario",
+    "params": {
+        "liquidita_31_giu_22": 115610.91,
+        "data_giu": "2026-01-03",
+        "azioni_luxottica": 16,
+        "mesi_di_spese_correnti": 2,
+        "mesi_di_spese_impreviste": 5,
+        "data_agenzia_entrate": "2026-01-01",
+        "importo_tasse_agenzia": 2512.36,
+        "anni_per_la_previsione": 11,
+        "data_1_anno_giulio": "2023-12-01",
+        "costo_asilo_nido_regime": 822,
+        "costo_asilo_nido_inizio": 822,
+        "aiuto_luxottica_e_bonus_nido": 427,
+        "start_nido_date": "2023-07-01",
+        "mese_senza_retta_scolastica": "08",
+        "end_nido_date": "2025-07-01",
+        "data_cambio_lavoro_Anna": "2026-10-01",
+        "importo_cambio_lavoro_Anna": 400,
+        "data_cambio_casa": "2028-01-01",
+        "importo_cambio_casa": 800,
+        "impatto_sui_viaggi_percento": 5,
+        "data_viaggio_america": "2026-08-01",
+        "importo_viaggio_america": 6000.0,
+        "data_fine_PAC_iniziale": "2023-12-30",
+        "importo_PAC_iniziale": 5000,
+        "investimento_annuale_ribilanciamento_stimato": 6000,
+        "mese_ribilanciamento": "04",
+        "interesse_lordo_Portafoglio_azionario": 4,
+        "start_date_maternity": "2023-07-01",
+        "mesi_maternita_facoltativa_Anna": 2,
+        "costo_retta_scuola_stimata": 70,
+        "minimum_desired_annual_interest_rate_for_deposit_account_percent" : 2
+    },
+    "correzioni": {
+        "spese": {
+            "2023-03-01": 3494
+        },
+        "reddito": {
+            "2022-09-01": 3828.10,
+            "2022-10-01": 4170.56,
+            "2023-06-01": 5352,
+            "2023-07-01": 5878,
+            "2023-08-01": 4088,
+            "2025-07-01": 5030,
+            "2026-01-01": 5560
+        }
+    },
+    "portfolio": {
+        "etf": [
+            {"Ticker": "VWCE.MI", "TER": 0.22, "ISIN": "IE00BK5BQT80"},
+            {"Ticker": "VFEA.MI", "TER": 0.22, "ISIN": "IE00BK5BR733"},
+            {"Ticker": "VHVE.MI", "TER": 0.12, "ISIN": "IE00BK5BQV03"},
+            {"Ticker": "AGGH.MI", "TER": 0.10, "ISIN": "IE00BDBRDM35"},
+            {"Ticker": "EHYA.MI", "TER": 0.25, "ISIN": "IE00BJK55C48"},
+            {"Ticker": "EM1015.MI", "TER": 0.15, "ISIN": "LU1650489385"},
+            {"Ticker": "EM710.MI", "TER": 0.15, "ISIN": "LU1287023185"},
+            {"Ticker": "EIMI.MI", "TER": 0.18, "ISIN": "IE00BKM4GZ66"},
+            {"Ticker": "QCEU.MI", "TER": 0.23, "ISIN": "LU1681041890"},
+            {"Ticker": "SWDA.MI", "TER": 0.20, "ISIN": "IE00B4L5Y983"},
+            {"Ticker": "XEON.MI", "TER": 0.10, "ISIN": "LU0290358497"}
+            
+        ]
+    },
+    "mesi_entrate_anomale": [
+        {"date": "2022-10-01", "note": "TFR e chiusura conti vecchio lavoro"},
+        {"date": "2022-09-01", "note": "Mancanza di entrate per cambio lavoro"},
+        {"date": "2023-06-01", "note": "Maternità Anna"},
+        {"date": "2023-07-01", "note": "Maternità Anna"},
+        {"date": "2023-08-01", "note": "Maternità Anna"},
+        {"date": "2025-07-01", "note": "TFR e chiusura conti vecchio lavoro"},
+        {"date": "2026-01-01", "note": "TFR e chiusura conti vecchio lavoro"}
+    ]
+}

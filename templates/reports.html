@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Report - Finanze{% endblock %}
+{% block content %}
+<div class="section-title"><i class="bi bi-bar-chart-fill me-2"></i>Report Spese</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card stat-card blue p-3">
+            <div class="text-muted small">Reddito Medio (18m)</div>
+            <div class="fw-bold fs-4 text-primary">€{{ "{:,.0f}".format(avg_income) }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card red p-3">
+            <div class="text-muted small">Spese Medie (18m)</div>
+            <div class="fw-bold fs-4 text-danger">€{{ "{:,.0f}".format(avg_expense) }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card green p-3">
+            <div class="text-muted small">Risparmio Medio (18m)</div>
+            <div class="fw-bold fs-4 {% if avg_savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                €{{ "{:,.0f}".format(avg_savings) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if chart_cat %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-pie-chart-fill text-warning me-2"></i>Spese per Categoria
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_cat }}" alt="Spese per Categoria">
+    </div>
+</div>
+{% endif %}
+
+{% if chart_profiles %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-people-fill text-primary me-2"></i>Spese per Profilo
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_profiles }}" alt="Spese per Profilo">
+    </div>
+</div>
+{% endif %}
+
+{% if chart_inflation %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-graph-up text-danger me-2"></i>Inflazione Personale
+        <span class="badge bg-secondary ms-2">{{ inflation }}% al 60° percentile</span>
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_inflation }}" alt="Inflazione Personale">
+    </div>
+</div>
+{% endif %}
+
+{% if monthly_detail %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-table text-primary me-2"></i>Dettaglio Mensile per Categoria (Spese)
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th>Mese</th>
+                    {% set all_cats = [] %}
+                    {% for row in monthly_detail %}
+                        {% for k in row.keys() if k != 'month' and k not in all_cats %}
+                            {% set _ = all_cats.append(k) %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% for c in all_cats %}<th class="text-end">{{ c }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in monthly_detail %}
+                <tr {% if row.month in anomalous %} class="table-warning"{% endif %}>
+                    <td>{{ row.month }} {% if row.month in anomalous %}<i class="bi bi-exclamation-triangle text-warning" title="Mese anomalo"></i>{% endif %}</td>
+                    {% for c in all_cats %}
+                    <td class="text-end text-muted small">{% if row.get(c) %}€{{ "{:,.0f}".format(row[c]) }}{% endif %}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if summary %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-calendar3 text-primary me-2"></i>Riepilogo Storico
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light sticky-top">
+                <tr>
+                    <th>Mese</th>
+                    <th class="text-end text-primary">Entrate</th>
+                    <th class="text-end text-danger">Uscite</th>
+                    <th class="text-end text-success">Risparmio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in summary|reverse %}
+                <tr {% if row.YearMonth in anomalous %} class="table-warning"{% endif %}>
+                    <td>{{ row.YearMonth }}</td>
+                    <td class="text-end text-primary">€{{ "{:,.0f}".format(row.Income) }}</td>
+                    <td class="text-end text-danger">€{{ "{:,.0f}".format(row.Expense) }}</td>
+                    <td class="text-end {% if row.Savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if row.Savings >= 0 %}+{% endif %}€{{ "{:,.0f}".format(row.Savings) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

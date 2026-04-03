@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Finanze{% endblock %}
+{% block content %}
+<div class="section-title"><i class="bi bi-house-fill me-2"></i>Dashboard</div>
+
+<!-- KPI Row 1: averages (Finance excluded) -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="text-muted small">Reddito Medio (12m)</div>
+            <div class="fw-bold fs-4 text-primary">€{{ "{:,.0f}".format(avg_income) }}</div>
+            <div class="text-muted small">entrate mensili medie</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card red p-3">
+            <div class="text-muted small">Spese Reali Medie (12m)</div>
+            <div class="fw-bold fs-4 text-danger">€{{ "{:,.0f}".format(avg_expense) }}</div>
+            <div class="text-muted small">senza Finance/investimenti</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="text-muted small">Risparmio Medio (12m)</div>
+            <div class="fw-bold fs-4 {% if avg_savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                €{{ "{:,.0f}".format(avg_savings) }}
+            </div>
+            <div class="text-muted small">reddito − spese reali</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card {% if inflation >= 0 %}red{% else %}green{% endif %} p-3">
+            <div class="text-muted small">Inflazione Personale</div>
+            <div class="fw-bold fs-4 {% if inflation >= 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ inflation }}%
+            </div>
+            <div class="text-muted small">60° percentile, escl. Finance/Housing/Bimbo</div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Row 2: liquidity breakdown -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card green p-3">
+            <div class="text-muted small">Liquidità Corrente</div>
+            <div class="fw-bold fs-4 text-success">€{{ "{:,.0f}".format(current_liquidity) }}</div>
+            <div class="text-muted small">bilancio bancario − investimenti</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card blue p-3">
+            <div class="text-muted small">Bilancio Bancario (lordo)</div>
+            <div class="fw-bold fs-5 text-primary">€{{ "{:,.0f}".format(bank_balance) }}</div>
+            <div class="text-muted small">include capitale trasferito a Fineco/CD</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card orange p-3">
+            <div class="text-muted small">Capitale Investito Totale</div>
+            <div class="fw-bold fs-5 text-warning">€{{ "{:,.0f}".format(total_invested_capital) }}</div>
+            <div class="text-muted small">
+                Fineco: €{{ "{:,.0f}".format(fineco_invested) }} · CD: €{{ "{:,.0f}".format(conto_dep_invested) }}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card green p-3">
+            <div class="text-muted small">Importo Investibile</div>
+            <div class="fw-bold fs-5 {% if investable_amount > 0 %}text-success{% else %}text-muted{% endif %}">
+                €{{ "{:,.0f}".format(investable_amount) }}
+            </div>
+            <div class="text-muted small">liquidità oltre i {{ "{:,.0f}".format(ideal_liquidity) }}€ ideali</div>
+        </div>
+    </div>
+</div>
+
+<!-- Info band: liquidity targets -->
+<div class="alert alert-info d-flex gap-4 py-2 mb-4">
+    <div><i class="bi bi-info-circle me-1"></i><strong>Liquidità ideale:</strong>
+        €{{ "{:,.0f}".format(ideal_liquidity) }}
+        <span class="text-muted small">(spese correnti × mesi)</span>
+    </div>
+    <div><strong>Conto deposito ideale:</strong>
+        €{{ "{:,.0f}".format(deposit_ideal) }}
+        <span class="text-muted small">(spese impreviste × mesi)</span>
+    </div>
+</div>
+
+{% if current_month_stats %}
+<div class="card p-3 mb-4">
+    <div class="text-muted small mb-1 fw-semibold">Mese Corrente ({{ current_month_stats.YearMonth }}) — Spese reali, senza Finance</div>
+    <div class="d-flex gap-4 flex-wrap">
+        <span class="text-primary fw-bold fs-5">↑ €{{ "{:,.0f}".format(current_month_stats.Income) }}</span>
+        <span class="text-danger fw-bold fs-5">↓ €{{ "{:,.0f}".format(current_month_stats.Expense) }}</span>
+        <span class="fw-bold fs-5 {% if current_month_stats.Savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+            = {% if current_month_stats.Savings >= 0 %}+{% endif %}€{{ "{:,.0f}".format(current_month_stats.Savings) }}
+        </span>
+        {% if current_month_stats.Invested is defined and current_month_stats.Invested > 0 %}
+        <span class="text-warning fw-bold fs-5">
+            <i class="bi bi-graph-up me-1"></i>Investito: €{{ "{:,.0f}".format(current_month_stats.Invested) }}
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if chart_savings %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-graph-up text-success me-2"></i>Andamento Bilancio Bancario nel Tempo
+        <span class="text-muted small ms-2">(include trasferimenti a Fineco e Conto Deposito come uscite di cassa)</span>
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_savings }}" alt="Andamento Bilancio">
+    </div>
+</div>
+{% endif %}
+
+{% if chart_monthly %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-bar-chart-fill text-primary me-2"></i>Entrate / Spese Reali / Risparmio (Ultimi 12 Mesi)
+        <span class="text-muted small ms-2">Finance escluso dalle uscite</span>
+    </div>
+    <div class="card-body chart-container text-center">
+        <img src="data:image/png;base64,{{ chart_monthly }}" alt="Riepilogo Mensile">
+    </div>
+</div>
+{% endif %}
+
+<!-- Profile comparison -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <div class="fw-semibold mb-2">
+                <i class="bi bi-person-fill text-primary me-1"></i>Federico
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">Entrate totali</span>
+                <span class="text-primary fw-bold">€{{ "{:,.0f}".format(fede_income) }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">Spese reali (senza Finance)</span>
+                <span class="text-danger fw-bold">€{{ "{:,.0f}".format(fede_expense) }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span class="text-muted small">Capitale investito (Finance)</span>
+                <span class="text-warning fw-bold">€{{ "{:,.0f}".format(fede_invested) }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3">
+            <div class="fw-semibold mb-2">
+                <i class="bi bi-person-fill" style="color:#E91E63"></i>&nbsp;Anna
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">Entrate totali</span>
+                <span class="text-primary fw-bold">€{{ "{:,.0f}".format(anna_income) }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted small">Spese reali (senza Finance)</span>
+                <span class="text-danger fw-bold">€{{ "{:,.0f}".format(anna_expense) }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span class="text-muted small">Capitale investito (Finance)</span>
+                <span class="text-warning fw-bold">€{{ "{:,.0f}".format(anna_invested) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if recent %}
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold py-3">
+        <i class="bi bi-calendar3 text-primary me-2"></i>Ultimi Mesi — Spese Reali (Finance escluso)
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mese</th>
+                    <th class="text-end text-primary">Entrate</th>
+                    <th class="text-end text-danger">Spese Reali</th>
+                    <th class="text-end text-warning">Investito</th>
+                    <th class="text-end text-success">Risparmio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in recent %}
+                <tr>
+                    <td>{{ row.YearMonth }}</td>
+                    <td class="text-end text-primary fw-semibold">€{{ "{:,.0f}".format(row.Income) }}</td>
+                    <td class="text-end text-danger fw-semibold">€{{ "{:,.0f}".format(row.Expense) }}</td>
+                    <td class="text-end text-warning fw-semibold">
+                        {% if row.Invested is defined %}€{{ "{:,.0f}".format(row.Invested) }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end fw-semibold {% if row.Savings >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if row.Savings >= 0 %}+{% endif %}€{{ "{:,.0f}".format(row.Savings) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
