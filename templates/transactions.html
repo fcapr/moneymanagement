@@ -98,6 +98,7 @@
                                 <i class="bi bi-pencil"></i>
                             </a>
                             <form method="post" action="{{ url_for('delete_transaction', tx_id=tx.id) }}" onsubmit="return confirm('Eliminare questa transazione?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
                                     <i class="bi bi-trash"></i>
                                 </button>

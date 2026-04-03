@@ -1,5 +1,8 @@
 import os
 import json
+import logging
+import secrets
+import re
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -8,13 +11,26 @@ import matplotlib.pyplot as plt
 import io
 import base64
 from decimal import Decimal
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, abort
 from datetime import datetime, date
 import db
 import analysis
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "finanze_secret_2024")
+app.logger.setLevel(logging.INFO)
+
+_secret_key = os.environ.get("SECRET_KEY")
+if not _secret_key:
+    # Use an ephemeral key in local/dev if SECRET_KEY is not configured.
+    _secret_key = secrets.token_hex(32)
+    app.logger.warning("SECRET_KEY is not set. Using an ephemeral key for this process.")
+
+app.secret_key = _secret_key
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("FLASK_ENV") == "production",
+)
 
 PROFILES = ["Federico", "Anna"]
 
@@ -47,6 +63,103 @@ SUBCATEGORIES = {
     "Investment":    ["Dividends", "Capital Gains", ""],
     "Other":         [""],
 }
+
+MONTH_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+VALID_CURRENCIES = {"EUR", "USD", "GBP", "CHF"}
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "img-src 'self' data:; "
+        "font-src 'self' https://cdn.jsdelivr.net; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+
+def _get_csrf_token():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
+
+
+@app.context_processor
+def inject_csrf_token():
+    return {"csrf_token": _get_csrf_token}
+
+
+@app.before_request
+def enforce_csrf():
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        if request.endpoint == "static":
+            return
+        expected = session.get("csrf_token")
+        provided = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+        if not expected or not provided or not secrets.compare_digest(expected, provided):
+            app.logger.warning("CSRF check failed for endpoint '%s'", request.endpoint)
+            abort(400, description="Invalid CSRF token")
+
+
+def _validate_tx_form(data):
+    profile = data.get("profile", "")
+    tx_type = data.get("type", "")
+    category = data.get("category", "")
+    subcategory = data.get("subcategory", "")
+    tx_date = data.get("date", "")
+    currency = data.get("currency", "EUR")
+    notes = (data.get("notes", "") or "").strip()
+
+    if profile not in PROFILES:
+        return "Profilo non valido.", None
+    if tx_type not in CATEGORIES:
+        return "Tipo transazione non valido.", None
+    if category not in CATEGORIES[tx_type]:
+        return "Categoria non valida per il tipo selezionato.", None
+    if currency not in VALID_CURRENCIES:
+        return "Valuta non valida.", None
+    if len(notes) > 500:
+        return "Le note sono troppo lunghe (max 500 caratteri).", None
+
+    allowed_subcats = set(SUBCATEGORIES.get(category, [""]))
+    if subcategory not in allowed_subcats:
+        return "Sottocategoria non valida.", None
+
+    try:
+        parsed_date = datetime.strptime(tx_date, "%Y-%m-%d").date()
+    except ValueError:
+        return "Data non valida.", None
+
+    try:
+        amount = float(data.get("amount", ""))
+        amount_eur_raw = data.get("amount_eur")
+        amount_eur = float(amount_eur_raw) if amount_eur_raw else amount
+    except (TypeError, ValueError):
+        return "Importi non validi.", None
+
+    if amount <= 0 or amount_eur <= 0:
+        return "Gli importi devono essere maggiori di zero.", None
+
+    return None, {
+        "profile": profile,
+        "type": tx_type,
+        "category": category,
+        "subcategory": subcategory,
+        "date": parsed_date.isoformat(),
+        "currency": currency,
+        "amount": amount,
+        "amount_eur": amount_eur,
+        "notes": notes,
+    }
 
 
 def convert_row(row):
@@ -189,10 +302,20 @@ def dashboard():
 
 @app.route("/transactions")
 def transactions():
-    profile  = request.args.get("profile", "")
-    tx_type  = request.args.get("type", "")
+    profile = request.args.get("profile", "")
+    tx_type = request.args.get("type", "")
     category = request.args.get("category", "")
-    month    = request.args.get("month", "")
+    month = request.args.get("month", "")
+
+    if profile and profile not in PROFILES:
+        profile = ""
+    if tx_type and tx_type not in {"Expense", "Income"}:
+        tx_type = ""
+    valid_categories = set(CATEGORIES["Expense"] + CATEGORIES["Income"])
+    if category and category not in valid_categories:
+        category = ""
+    if month and not MONTH_PATTERN.match(month):
+        month = ""
 
     sql    = "SELECT * FROM transactions WHERE 1=1"
     params = []
@@ -222,33 +345,26 @@ def transactions():
 @app.route("/add", methods=["GET", "POST"])
 def add_transaction():
     if request.method == "POST":
-        profile    = request.form.get("profile")
-        tx_date    = request.form.get("date")
-        category   = request.form.get("category")
-        subcategory= request.form.get("subcategory", "")
-        amount     = request.form.get("amount")
-        currency   = request.form.get("currency", "EUR")
-        amount_eur = request.form.get("amount_eur")
-        tx_type    = request.form.get("type")
-        notes      = request.form.get("notes", "")
-
-        if not all([profile, tx_date, category, amount, tx_type]):
-            flash("Tutti i campi obbligatori devono essere compilati.", "danger")
+        error, clean = _validate_tx_form(request.form)
+        if error:
+            flash(error, "danger")
             return redirect(url_for("add_transaction"))
 
         try:
-            amount     = float(amount)
-            amount_eur = float(amount_eur) if amount_eur else amount
             db.execute(
                 """INSERT INTO transactions
                    (date, profile, category, subcategory, amount, currency, amount_eur, type, notes)
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                [tx_date, profile, category, subcategory, amount, currency, amount_eur, tx_type, notes]
+                [
+                    clean["date"], clean["profile"], clean["category"], clean["subcategory"],
+                    clean["amount"], clean["currency"], clean["amount_eur"], clean["type"], clean["notes"]
+                ]
             )
-            flash(f"Transazione aggiunta con successo per {profile}!", "success")
+            flash(f"Transazione aggiunta con successo per {clean['profile']}!", "success")
             return redirect(url_for("transactions"))
-        except Exception as e:
-            flash(f"Errore durante il salvataggio: {str(e)}", "danger")
+        except Exception:
+            app.logger.exception("Failed to insert transaction")
+            flash("Errore durante il salvataggio. Riprova più tardi.", "danger")
             return redirect(url_for("add_transaction"))
 
     return render_template("add_transaction.html",
@@ -262,17 +378,26 @@ def add_transaction():
 @app.route("/edit/<int:tx_id>", methods=["GET", "POST"])
 def edit_transaction(tx_id):
     if request.method == "POST":
-        db.execute(
-            """UPDATE transactions SET date=%s, profile=%s, category=%s, subcategory=%s,
-               amount=%s, currency=%s, amount_eur=%s, type=%s, notes=%s WHERE id=%s""",
-            [request.form["date"], request.form["profile"], request.form["category"],
-             request.form.get("subcategory",""), float(request.form["amount"]),
-             request.form.get("currency","EUR"),
-             float(request.form.get("amount_eur") or request.form["amount"]),
-             request.form["type"], request.form.get("notes",""), tx_id]
-        )
-        flash("Transazione aggiornata con successo!", "success")
-        return redirect(url_for("transactions"))
+        error, clean = _validate_tx_form(request.form)
+        if error:
+            flash(error, "danger")
+            return redirect(url_for("edit_transaction", tx_id=tx_id))
+
+        try:
+            db.execute(
+                """UPDATE transactions SET date=%s, profile=%s, category=%s, subcategory=%s,
+                   amount=%s, currency=%s, amount_eur=%s, type=%s, notes=%s WHERE id=%s""",
+                [
+                    clean["date"], clean["profile"], clean["category"], clean["subcategory"],
+                    clean["amount"], clean["currency"], clean["amount_eur"], clean["type"], clean["notes"], tx_id
+                ]
+            )
+            flash("Transazione aggiornata con successo!", "success")
+            return redirect(url_for("transactions"))
+        except Exception:
+            app.logger.exception("Failed to update transaction id=%s", tx_id)
+            flash("Errore durante l'aggiornamento. Riprova più tardi.", "danger")
+            return redirect(url_for("edit_transaction", tx_id=tx_id))
 
     row = db.query("SELECT * FROM transactions WHERE id = %s", [tx_id], fetchall=False)
     if not row:
@@ -288,8 +413,12 @@ def edit_transaction(tx_id):
 
 @app.route("/delete/<int:tx_id>", methods=["POST"])
 def delete_transaction(tx_id):
-    db.execute("DELETE FROM transactions WHERE id = %s", [tx_id])
-    flash("Transazione eliminata.", "success")
+    try:
+        db.execute("DELETE FROM transactions WHERE id = %s", [tx_id])
+        flash("Transazione eliminata.", "success")
+    except Exception:
+        app.logger.exception("Failed to delete transaction id=%s", tx_id)
+        flash("Errore durante l'eliminazione. Riprova più tardi.", "danger")
     return redirect(url_for("transactions"))
 
 

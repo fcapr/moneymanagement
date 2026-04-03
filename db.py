@@ -5,9 +5,15 @@ from contextlib import contextmanager
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+
+def _require_database_url():
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL environment variable is required")
+
 @contextmanager
 def get_db():
-    conn = psycopg2.connect(DATABASE_URL)
+    _require_database_url()
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
     try:
         yield conn
         conn.commit()
